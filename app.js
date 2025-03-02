@@ -2,7 +2,6 @@ const express = require('express');
 const app = express();
 const port = 3000;
 const B2 = require('backblaze-b2');
-
 require('dotenv').config();
 
 // Initialize the Backblaze B2 client
@@ -16,47 +15,66 @@ const bucketName = process.env.BUCKET_NAME;
 let fileName = process.env.FILE_NAME; // You can change this variable as needed
 
 const authenticateB2 = async () => {
-	try {
-	  await b2.authorize();  // Must authorize before making requests
-	  console.log('Authenticated with Backblaze B2');
-	} catch (err) {
-	  console.error('Error authenticating with Backblaze B2:', err);
-	  throw err;
-	}
-  };
-  
-  // Stream the file directly to the client
-  const downloadFileFromB2 = async (fileName, res) => {
-	try {
-	  // Authenticate before making requests
-	  await authenticateB2();
-  
-	  // Download the file by name using the correct method
-	  const downloadResponse = await b2.downloadFileByName({
-		bucketName,
-		fileName,
-		responseType: 'stream',  // We need the file as a stream to pipe it to the response
-	  });
-  
-	  const fileStream = downloadResponse.data;  // The data returned is a stream
-  
-	  // Set headers to indicate the content type and force download
-	  res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-	  res.setHeader('Content-Type', 'application/pdf');
-  
-	  // Pipe the file stream to the response
-	  fileStream.pipe(res);
-	} catch (err) {
-	  console.error('Download failed:', err);
-	  res.status(500).send('Failed to download the file');
-	}
-  };
-  
-  app.get('/', (req, res) => {
-	// Call the function to stream the file to the client
-	downloadFileFromB2(fileName, res);
-  });
-  
-  app.listen(port, () => {
-	console.log(`Example app listening on port ${port}`);
-  });
+  try {
+    await b2.authorize();  // Must authorize before making requests
+    console.log('Authenticated with Backblaze B2');
+  } catch (err) {
+    console.error('Error authenticating with Backblaze B2:', err);
+    throw err;
+  }
+};
+
+// Stream the file directly to the client
+const downloadFileFromB2 = async (fileName, res) => {
+  try {
+    // Authenticate before making requests
+    await authenticateB2();
+
+    // Download the file by name using the correct method
+    const downloadResponse = await b2.downloadFileByName({
+      bucketName,
+      fileName,
+      responseType: 'stream',  // We need the file as a stream to pipe it to the response
+    });
+
+    const fileStream = downloadResponse.data;  // The data returned is a stream
+
+    // Set headers to indicate the content type and force download
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Type', 'application/pdf');
+
+    // Pipe the file stream to the response
+    fileStream.pipe(res);
+  } catch (err) {
+    console.error('Download failed:', err);
+    res.status(500).send('Failed to download the file');
+  }
+};
+
+app.get('/', (req, res) => {
+  // Call the function to stream the file to the client
+  downloadFileFromB2(fileName, res);
+
+  // After downloading the file, send a response that will instruct the browser to close the tab.
+  res.send(`
+    <html>
+      <head>
+        <script type="text/javascript">
+          window.onload = function() {
+            // Delay closing the tab to allow download to start
+            setTimeout(function() {
+              window.close();
+            }, 1000); // 1-second delay before closing the tab
+          };
+        </script>
+      </head>
+      <body>
+        <h1>Downloading your file...</h1>
+      </body>
+    </html>
+  `);
+});
+
+app.listen(port, () => {
+  console.log(`Example app listening on port ${port}`);
+});
