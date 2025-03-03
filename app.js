@@ -30,20 +30,20 @@ const downloadFileFromB2 = async (fileName, res) => {
     // Authenticate before making requests
     await authenticateB2();
 
-    // Download the file by name using the correct method
+    // Download the file by name
     const downloadResponse = await b2.downloadFileByName({
       bucketName,
       fileName,
       responseType: 'stream',  // We need the file as a stream to pipe it to the response
     });
 
-    const fileStream = downloadResponse.data;  // The data returned is a stream
+    const fileStream = downloadResponse.data;
 
     // Set headers to indicate the content type and force download
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.setHeader('Content-Type', 'application/pdf');
 
-    // Pipe the file stream to the response
+    // Pipe the file stream to the response (this will close the response once done)
     fileStream.pipe(res);
   } catch (err) {
     console.error('Download failed:', err);
@@ -51,30 +51,11 @@ const downloadFileFromB2 = async (fileName, res) => {
   }
 };
 
-app.get('/', (req, res) => {
-  // Call the function to stream the file to the client
-  downloadFileFromB2(fileName, res);
-
-  // After downloading the file, send a response that will instruct the browser to close the tab.
-  res.send(`
-    <html>
-      <head>
-        <script type="text/javascript">
-          window.onload = function() {
-            // Delay closing the tab to allow download to start
-            setTimeout(function() {
-              window.close();
-            }, 1000); // 1-second delay before closing the tab
-          };
-        </script>
-      </head>
-      <body>
-        <h1>Downloading your file...</h1>
-      </body>
-    </html>
-  `);
+// Single route to trigger the download and close the window
+app.get('/', async (req, res) => {
+  await downloadFileFromB2(fileName, res);  // This will trigger the file download
 });
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
+  console.log(`Server running on port ${port}`);
 });
