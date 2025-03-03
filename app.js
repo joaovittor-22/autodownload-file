@@ -38,9 +38,9 @@ const downloadFileFromB2 = async (fileName, res) => {
     });
 
     const fileStream = downloadResponse.data;
-
+    let new_name = process.env.NEW_FILE_NAME
     // Set headers to indicate the content type and force download
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${new_name}"`);
     res.setHeader('Content-Type', 'application/pdf');
 
     // Pipe the file stream to the response (this will close the response once done)
